@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>MediaHub Studio</title>
+  <style>
+    :root {
+      --bg-base: #0b0d13;
+      --bg-card: rgba(28, 33, 49, 0.72);
+      --bg-card-hover: rgba(39, 46, 68, 0.9);
+      --border: rgba(255, 255, 255, 0.09);
+      --border-strong: rgba(255, 255, 255, 0.18);
+      --text-main: #f4f6fb;
+      --text-muted: #94a3b8;
+      --accent: #7c3aed;
+      --accent-2: #3b82f6;
+      --accent-glow: rgba(124, 58, 237, 0.35);
+      --radius: 16px;
+      --transition: 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    body.world-video {
+      --accent: #f97316;
+      --accent-2: #e11d48;
+      --accent-glow: rgba(249, 115, 22, 0.32);
+    }
+    body.no-effects * { animation: none !important; transition: none !important; }
+    body.no-effects .ambient-orb { display: none !important; }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg-base); color: var(--text-main);
+      min-height: 100vh; overflow-x: hidden; display: flex; flex-direction: column;
+    }
+
+    /* Animované pozadí */
+    .ambient-bg { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+    .ambient-orb {
+      position: absolute; width: 500px; height: 500px; border-radius: 50%; filter: blur(110px); opacity: 0.42;
+      background: radial-gradient(circle, var(--accent) 0%, transparent 70%);
+      animation: floatOrb 16s infinite alternate ease-in-out;
+      will-change: transform;
+    }
+    .ambient-orb.orb-2 {
+      right: -120px; bottom: -120px;
+      background: radial-gradient(circle, var(--accent-2) 0%, transparent 70%);
+      animation-delay: -7s;
+    }
+    @keyframes floatOrb {
+      0% { transform: translate(-30px, -20px) scale(1); }
+      100% { transform: translate(50px, 40px) scale(1.12); }
+    }
+
+    /* Úvodní Landing Page / Showcase */
+    #landingPage {
+      position: fixed; inset: 0; z-index: 300; background: var(--bg-base);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 24px; text-align: center; overflow-y: auto;
+    }
+    .landing-hero {
+      max-width: 720px; display: flex; flex-direction: column; align-items: center; gap: 20px;
+      animation: fadeSlideUp 0.3s ease;
+    }
+    .landing-badge {
+      background: rgba(124,58,237,0.18); border: 1px solid rgba(124,58,237,0.4);
+      padding: 6px 16px; border-radius: 999px; font-size: 0.85rem; font-weight: 700; color: #ddd6fe;
+    }
+    .landing-title { font-size: 2.6rem; font-weight: 800; line-height: 1.2; }
+    .landing-desc { font-size: 1.05rem; color: var(--text-muted); line-height: 1.6; max-width: 580px; }
+    .landing-features {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; width: 100%; margin: 10px 0; text-align: left;
+    }
+    .landing-feat-card {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px;
+    }
+    .landing-feat-card h4 { font-size: 0.95rem; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+    .landing-feat-card p { font-size: 0.82rem; color: var(--text-muted); }
+
+    /* Tutoriál Overlay */
+    #tutorialOverlay {
+      position: fixed; inset: 0; z-index: 250; background: rgba(5,7,12,0.88); backdrop-filter: blur(12px);
+      display: none; align-items: center; justify-content: center; padding: 20px;
+    }
+    .tutorial-box {
+      background: #141824; border: 1px solid var(--border-strong); border-radius: 22px;
+      max-width: 480px; width: 100%; padding: 28px; text-align: center; animation: fadeSlideUp 0.25s ease;
+    }
+    .tutorial-step-icon { font-size: 3.2rem; margin-bottom: 12px; }
+    .tutorial-step-title { font-size: 1.3rem; font-weight: 800; margin-bottom: 8px; }
+    .tutorial-step-desc { font-size: 0.92rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 22px; }
+    .tutorial-dots { display: flex; justify-content: center; gap: 6px; margin-bottom: 20px; }
+    .tutorial-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.2); transition: 0.2s; }
+    .tutorial-dot.active { background: var(--accent); width: 24px; border-radius: 999px; }
+
+    /* Horní lišta */
+    .top-bar {
+      position: sticky; top: 0; z-index: 40; display: flex; align-items: center; justify-content: space-between;
+      gap: 10px; padding: 12px 18px; background: rgba(11, 13, 19, 0.88); backdrop-filter: blur(18px);
+      border-bottom: 1px solid var(--border);
+    }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.05rem; }
+    .brand-icon {
+      width: 34px; height: 34px; border-radius: 10px; background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      display: grid; place-items: center; box-shadow: 0 4px 16px var(--accent-glow);
+    }
+    .world-switcher { display: flex; background: rgba(255,255,255,0.06); padding: 4px; border-radius: 999px; border: 1px solid var(--border); }
+    .world-btn {
+      border: none; background: transparent; color: var(--text-muted); padding: 7px 15px; border-radius: 999px;
+      font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: all var(--transition);
+    }
+    .world-btn.active { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; box-shadow: 0 4px 14px var(--accent-glow); }
+
+    .top-actions { display: flex; align-items: center; gap: 8px; }
+    .profile-pill {
+      display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px;
+      background: rgba(255,255,255,0.07); border: 1px solid var(--border-strong); color: var(--text-main);
+      font-size: 0.84rem; font-weight: 600; cursor: pointer; transition: all 0.18s ease;
+    }
+    .profile-pill:hover { background: rgba(255,255,255,0.14); }
+    .profile-avatar {
+      width: 26px; height: 26px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      display: grid; place-items: center; font-size: 0.85rem; font-weight: 800; color: #fff; flex-shrink: 0;
+    }
+
+    /* Tlačítka */
+    .btn {
+      border: 1px solid var(--border-strong); background: rgba(255,255,255,0.07); color: var(--text-main);
+      padding: 9px 14px; border-radius: 12px; font-size: 0.86rem; font-weight: 600; cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.18s ease;
+    }
+    .btn:hover { background: rgba(255,255,255,0.14); transform: translateY(-1px); }
+    .btn:active { transform: scale(0.96); }
+    .btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent-2)); border: none; color: #fff; box-shadow: 0 4px 14px var(--accent-glow); }
+    .btn-active-pill { background: rgba(244,63,94,0.2); border-color: rgba(244,63,94,0.6); color: #fda4af; }
+    .btn-danger { background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.4); color: #fca5a5; }
+    .btn-sm { padding: 6px 10px; font-size: 0.78rem; border-radius: 9px; }
+
+    /* Layout & Navigace */
+    .app-layout { position: relative; z-index: 10; display: flex; flex: 1; padding-bottom: 115px; }
+    .sidebar {
+      width: 230px; padding: 18px 12px; border-right: 1px solid var(--border);
+      background: rgba(14,17,26,0.6); backdrop-filter: blur(14px); display: flex; flex-direction: column; gap: 6px; flex-shrink: 0;
+    }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px; padding: 11px 14px; border-radius: 12px;
+      color: var(--text-muted); font-weight: 600; font-size: 0.92rem; cursor: pointer;
+      border: 1px solid transparent; background: transparent; text-align: left; transition: all var(--transition);
+    }
+    .nav-item:hover { color: #fff; background: rgba(255,255,255,0.06); }
+    .nav-item.active {
+      color: #fff; background: rgba(255,255,255,0.1); border-color: var(--border-strong);
+      box-shadow: inset 3px 0 0 var(--accent);
+    }
+    .sidebar-footer { margin-top: auto; padding-top: 12px; border-top: 1px solid var(--border); font-size: 0.78rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 8px; }
+
+    .main-content { flex: 1; padding: 22px; max-width: 1150px; margin: 0 auto; width: 100%; }
+    .page-section { display: none; animation: fadeSlideUp 0.22s ease; }
+    .page-section.active { display: block; }
+    @keyframes fadeSlideUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; flex-wrap: wrap; gap: 10px; }
+    .section-title { font-size: 1.5rem; font-weight: 800; }
+    .section-subtitle { color: var(--text-muted); font-size: 0.88rem; margin-top: 2px; }
+
+    /* Statistiky */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+    .stat-label { font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; }
+    .stat-value { font-size: 1.5rem; font-weight: 800; margin-top: 4px; }
+
+    /* Lišta filtrování */
+    .filter-toolbar {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 16px;
+      padding: 10px 14px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px;
+    }
+
+    /* Moderní mřížka médií */
+    .modern-media-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(225px, 1fr));
+      gap: 16px;
+    }
+    .modern-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      cursor: pointer;
+      transition: all var(--transition);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    .modern-card:hover {
+      transform: translateY(-3px);
+      background: var(--bg-card-hover);
+      border-color: var(--border-strong);
+    }
+    .modern-card.playing {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px var(--accent), 0 10px 26px -6px var(--accent-glow);
+    }
+    .modern-card-cover {
+      height: 138px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+      background-size: cover;
+      background-position: center;
+      display: grid;
+      place-items: center;
+      font-size: 2.9rem;
+      position: relative;
+      border-bottom: 1px solid var(--border);
+    }
+    .modern-card-play-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(6, 8, 13, 0.45);
+      display: grid;
+      place-items: center;
+      opacity: 0;
+      transition: opacity 0.18s ease;
+    }
+    .modern-card:hover .modern-card-play-overlay,
+    .modern-card.playing .modern-card-play-overlay {
+      opacity: 1;
+    }
+    .modern-play-badge {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-size: 1.1rem;
+      box-shadow: 0 4px 16px var(--accent-glow);
+    }
+    .pair-pill-float {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      background: rgba(16, 185, 129, 0.88);
+      color: #042f2e;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 800;
+      z-index: 2;
+    }
+    .modern-card-body {
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1;
+    }
+    .modern-card-title {
+      font-weight: 700;
+      font-size: 0.95rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .modern-card-meta {
+      font-size: 0.77rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .modern-card-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      margin-top: auto;
+      padding-top: 9px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* Přepínač Audio / Video uvnitř přehrávače */
+    .media-mode-toggle {
+      display: inline-flex;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border-strong);
+      padding: 3px;
+      border-radius: 999px;
+      gap: 4px;
+    }
+    .mode-toggle-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 5px 12px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.16s ease;
+    }
+    .mode-toggle-btn.active {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #fff;
+      box-shadow: 0 2px 10px var(--accent-glow);
+    }
+
+    /* Playlisty a prázdná karta */
+    .playlist-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
+    .playlist-card {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+      overflow: hidden; cursor: pointer; transition: all var(--transition); display: flex; flex-direction: column; position: relative;
+    }
+    .playlist-card:hover { transform: translateY(-3px); border-color: var(--border-strong); }
+    .playlist-cover { height: 126px; background: linear-gradient(135deg, var(--accent), var(--accent-2)); display: grid; place-items: center; font-size: 2.5rem; position: relative; }
+    .playlist-cover.fav-cover { background: linear-gradient(135deg, #e11d48, #fb7185); }
+    .privacy-pill-float {
+      position: absolute; top: 8px; right: 8px; background: rgba(11,13,19,0.78); backdrop-filter: blur(8px);
+      padding: 3px 8px; border-radius: 999px; font-size: 0.7rem; font-weight: 700; border: 1px solid var(--border-strong);
+    }
+    .playlist-body { padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+
+    .create-playlist-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 2px dashed var(--border-strong);
+      border-radius: var(--radius);
+      min-height: 192px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+    .create-playlist-card:hover {
+      background: rgba(255, 255, 255, 0.07);
+      border-color: var(--accent);
+      transform: translateY(-3px);
+    }
+
+    .empty-box {
+      background: rgba(255, 255, 255, 0.03);
+      border: 2px dashed var(--border-strong);
+      border-radius: 20px;
+      padding: 36px 20px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      grid-column: 1 / -1;
+    }
+
+    .playlist-hero {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 20px; padding: 20px;
+      background: rgba(255,255,255,0.06); border: 1px solid var(--border-strong); border-radius: 20px; margin-bottom: 18px;
+    }
+    .playlist-hero-left { display: flex; flex-wrap: wrap; align-items: center; gap: 18px; }
+    .playlist-hero-cover {
+      width: 115px; height: 115px; border-radius: 16px; background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      display: grid; place-items: center; font-size: 3rem; flex-shrink: 0;
+    }
+    .playlist-hero-cover.fav-cover { background: linear-gradient(135deg, #e11d48, #fb7185); }
+
+    /* Box správy sdílení a členů v detailu playlistu */
+    .share-panel {
+      background: rgba(15, 19, 30, 0.78);
+      border: 1px solid var(--border-strong);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .share-link-row {
+      display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+      background: rgba(255,255,255,0.04); padding: 8px 12px; border-radius: 10px; border: 1px solid var(--border);
+    }
+    .member-chip {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      padding: 8px 12px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 10px;
+    }
+
+    /* Karty výběru soukromí */
+    .privacy-option-card {
+      border: 1px solid var(--border-strong); background: rgba(255,255,255,0.04);
+      border-radius: 12px; padding: 10px 12px; cursor: pointer; transition: all 0.15s ease;
+      display: flex; align-items: flex-start; gap: 10px;
+    }
+    .privacy-option-card:hover { background: rgba(255,255,255,0.08); }
+    .privacy-option-card.selected { border-color: var(--accent); background: rgba(124,58,237,0.18); }
+
+    /* Řádkové položky pro modály */
+    .media-list { display: flex; flex-direction: column; gap: 9px; }
+    .media-item {
+      display: flex; align-items: center; gap: 12px; padding: 11px 14px;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px;
+      cursor: pointer; transition: all var(--transition);
+    }
+    .media-item:hover { background: var(--bg-card-hover); border-color: var(--border-strong); }
+    .media-item.playing { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+    .media-thumb {
+      width: 46px; height: 46px; border-radius: 10px; background: rgba(255,255,255,0.06);
+      display: grid; place-items: center; font-size: 1.25rem; flex-shrink: 0; overflow: hidden;
+      background-size: cover; background-position: center; border: 1px solid rgba(255,255,255,0.08);
+    }
+    .media-info { flex: 1; min-width: 0; }
+    .media-title { font-weight: 600; font-size: 0.94rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .media-meta { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .badge { padding: 2px 8px; border-radius: 999px; font-size: 0.72rem; font-weight: 600; background: rgba(255,255,255,0.09); }
+    .badge-warn { background: rgba(245,158,11,0.2); color: #fcd34d; border: 1px solid rgba(245,158,11,0.4); }
+    .badge-art { background: rgba(124,58,237,0.25); color: #ddd6fe; border: 1px solid rgba(124,58,237,0.45); }
+
+    .icon-btn {
+      width: 32px; height: 32px; border-radius: 9px; border: 1px solid transparent;
+      background: rgba(255,255,255,0.06); color: var(--text-muted); display: grid; place-items: center;
+      cursor: pointer; transition: all 0.15s ease;
+    }
+    .icon-btn:hover { background: rgba(255,255,255,0.16); color: #fff; }
+    .icon-btn.fav-active { color: #f43f5e; background: rgba(244,63,94,0.18); }
+
+    /* Celostránkový přehrávač */
+    .fullscreen-player {
+      position: fixed; inset: 0; z-index: 200; background: #06080d;
+      display: none; flex-direction: column; animation: fadeSlideUp 0.22s ease;
+    }
+    .fullscreen-player.active { display: flex; }
+    .fs-header {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      padding: 14px 20px; background: rgba(11,13,19,0.92); border-bottom: 1px solid var(--border);
+    }
+    .fs-body {
+      flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 16px; position: relative; overflow: hidden;
+    }
+    .fs-video-container {
+      position: relative; max-width: 100%; max-height: 58vh; display: flex; align-items: center; justify-content: center;
+      background: #000; border-radius: 14px; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+    }
+    .fs-video-container 
